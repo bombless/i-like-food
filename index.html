@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#f5eddc" />
+    <meta name="description" content="循着饭香，敲开邻居家的门。一款温暖治愈的 Three.js 街区蹭饭小游戏。" />
+    <title>闻香去蹭饭 · Neighborhood Bites</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍚</text></svg>" />
+  </head>
+  <body>
+    <main id="app">
+      <div id="game-canvas" aria-label="3D 邻里街区游戏场景"></div>
+      <div class="vignette"></div>
+
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="闻香去蹭饭首页">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none"><path d="M6 14h20c0 8-4 12-10 12S6 22 6 14Z" fill="currentColor"/><path d="M4 14h24M11 5c-3 3 3 4 0 7M18 4c-3 3 3 4 0 7M23 7c-2 2 2 3 0 5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+          </span>
+          <span><strong>闻香去蹭饭</strong><small>NEIGHBORHOOD BITES</small></span>
+        </a>
+        <div class="top-actions">
+          <div class="evening-chip"><span class="sun-dot"></span><span>周五 · 傍晚</span><strong id="clock">18:30</strong></div>
+          <button class="icon-button" id="sound-button" aria-label="关闭声音" title="声音">
+            <svg class="sound-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"/></svg>
+            <svg class="sound-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m16 9 5 5m0-5-5 5"/></svg>
+          </button>
+          <button class="icon-button" id="help-button" aria-label="查看玩法" title="玩法">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.3 2.1c-.8.4-1.1 1-1.1 1.9M12 17h.01"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <aside class="meal-panel glass-panel" id="meal-panel">
+        <div class="panel-heading">
+          <div><span class="eyebrow">TONIGHT'S MISSION</span><h2>今晚的蹭饭清单</h2></div>
+          <span class="meal-count" id="meal-count">0/4</span>
+        </div>
+        <div class="progress-track"><span id="meal-progress"></span></div>
+        <div id="meal-list" class="meal-list"></div>
+        <div class="panel-footer"><span>🥢</span> 碗筷已自带，就差开饭啦</div>
+      </aside>
+
+      <aside class="scent-panel glass-panel" id="scent-panel">
+        <div class="radar-wrap" id="radar-wrap">
+          <span class="radar-ring ring-one"></span><span class="radar-ring ring-two"></span>
+          <span class="radar-icon">👃</span>
+        </div>
+        <div class="scent-copy">
+          <span class="eyebrow">NOSE RADAR · 鼻子雷达</span>
+          <strong id="scent-dish">附近有饭菜香…</strong>
+          <span id="scent-detail">四处走走，闻闻今晚吃什么</span>
+        </div>
+        <div class="scent-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      </aside>
+
+      <div class="interaction-prompt" id="interaction-prompt">
+        <span class="keycap">E</span>
+        <div><small id="prompt-subtitle">香味就是从这里飘出来的</small><strong id="prompt-text">敲门蹭饭</strong></div>
+        <span class="prompt-arrow">→</span>
+      </div>
+
+      <div class="controls-hint" id="controls-hint">
+        <span><span class="wasd-icon"><i>W</i><i>A</i><i>S</i><i>D</i></span> 移动</span>
+        <b></b><span><span class="small-key">SHIFT</span> 加速</span>
+        <b></b><span><span class="small-key">E</span> 敲门 / 开饭</span>
+      </div>
+
+      <div class="mobile-controls" id="mobile-controls">
+        <div class="dpad">
+          <button data-key="KeyW" class="dpad-up" aria-label="向前">↑</button>
+          <button data-key="KeyA" class="dpad-left" aria-label="向左">←</button>
+          <button data-key="KeyS" class="dpad-down" aria-label="向后">↓</button>
+          <button data-key="KeyD" class="dpad-right" aria-label="向右">→</button>
+        </div>
+        <button class="mobile-action" id="mobile-action"><span>E</span>敲门</button>
+      </div>
+
+      <section class="welcome-overlay" id="welcome-overlay">
+        <div class="welcome-card">
+          <div class="welcome-tag"><span></span> 一款用鼻子导航的街区小游戏</div>
+          <h1>今晚，<br />去邻居家<br /><em>蹭顿饭。</em></h1>
+          <p>晚风把饭菜香吹过街巷。<br />循着香气，敲开门，尝尝四道热乎乎的家常菜。</p>
+          <button class="primary-button" id="start-button"><span>带上碗筷，出发</span><b>→</b></button>
+          <div class="welcome-meta"><span>4 位邻居</span><i></i><span>4 道家常菜</span><i></i><span>不限时，慢慢逛</span></div>
+          <div class="welcome-tip"><span class="keycap">E</span><span>靠近门口就能敲门，<strong>Shift</strong> 可以加速哦</span></div>
+        </div>
+        <div class="floating-note note-one"><span>🥟</span><div><strong>三鲜饺子</strong><small>林奶奶家 · 刚出锅</small></div></div>
+        <div class="floating-note note-two"><span>🍛</span><div><strong>咖喱鸡</strong><small>小满家 · 浓郁辛香</small></div></div>
+        <div class="welcome-sticker">好香呀！<span>↙</span></div>
+      </section>
+
+      <section class="dialog-wrap hidden" id="dialog-wrap" aria-live="polite">
+        <div class="neighbor-dialog">
+          <div class="neighbor-avatar" id="neighbor-avatar">👵</div>
+          <div class="dialog-content">
+            <div class="dialog-name"><strong id="neighbor-name">林奶奶</strong><span id="neighbor-dish">三鲜饺子出锅啦</span></div>
+            <p id="neighbor-line"></p>
+          </div>
+          <button class="eat-button" id="eat-button"><span>开动啦</span><span class="keycap">E</span></button>
+        </div>
+      </section>
+
+      <section class="eating-overlay hidden" id="eating-overlay">
+        <div class="eating-card">
+          <div class="food-burst"><span id="eating-emoji">🥟</span><i></i><i></i><i></i></div>
+          <h2 id="eating-title">啊呜啊呜…</h2><p id="eating-caption">这一口，是家的味道。</p>
+          <div class="eating-progress"><span></span></div>
+        </div>
+      </section>
+
+      <section class="modal-overlay hidden" id="win-overlay">
+        <div class="result-card">
+          <div class="result-confetti" aria-hidden="true">✦　·　✧　·　✦</div>
+          <span class="result-bowl">🍚</span>
+          <span class="eyebrow">MISSION DELICIOUS · COMPLETE</span>
+          <h2>今晚也靠本事<br /><em>吃饱了！</em></h2>
+          <p>四家饭菜，四种香气。<br />最好吃的，还是邻居们那句“快进来”。</p>
+          <div class="result-stats"><div><strong>4/4</strong><span>暖心家常菜</span></div><i></i><div><strong id="result-time">02:18</strong><span>今晚干饭用时</span></div><i></i><div><strong>100%</strong><span>幸福饱足感</span></div></div>
+          <button class="primary-button" id="restart-button"><span>明天再来蹭一顿</span><b>↻</b></button>
+        </div>
+      </section>
+
+      <section class="modal-overlay hidden" id="help-overlay">
+        <div class="help-card">
+          <button class="close-button" id="close-help" aria-label="关闭玩法">×</button>
+          <span class="eyebrow">HOW TO PLAY</span><h2>好味道，闻得到</h2>
+          <div class="help-steps">
+            <div><span>01</span><div><strong>循着香气走</strong><p>不同颜色代表不同菜香，右下角鼻子雷达会提示最近的一家。</p></div></div>
+            <div><span>02</span><div><strong>在门口按 E</strong><p>靠近发亮的门垫，按 E 敲门。邻居总会多备一双碗筷。</p></div></div>
+            <div><span>03</span><div><strong>吃遍整个街区</strong><p>品尝四道家常菜，填满今晚的蹭饭清单。没有倒计时，慢慢逛。</p></div></div>
+          </div>
+          <button class="primary-button" id="got-it-button"><span>知道啦，闻香出发</span><b>→</b></button>
+        </div>
+      </section>
+
+      <div class="toast" id="toast"><span id="toast-icon">🥟</span><div><strong id="toast-title">三鲜饺子，吃到！</strong><small id="toast-caption">幸福值 +25 · 继续闻香出发</small></div></div>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

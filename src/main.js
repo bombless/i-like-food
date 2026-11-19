@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createInterior } from './interiors.js';
 import './style.css';
 
 const $ = (selector) => document.querySelector(selector);
@@ -36,6 +37,8 @@ const neighbors = [
 let gameState = 'welcome';
 let previousState = 'welcome';
 let activeNeighbor = null;
+let currentHouse = null;
+let interaction = null;
 let startedAt = 0;
 let elapsedBeforeWin = 0;
 let audioContext = null;
@@ -44,6 +47,7 @@ let toastTimer;
 const keys = new Set();
 
 const scene = new THREE.Scene();
+let activeScene = scene;
 scene.background = new THREE.Color('#e9e5d1');
 scene.fog = new THREE.Fog('#e9e5d1', 45, 82);
 
@@ -60,12 +64,15 @@ $('#game-canvas').appendChild(renderer.domElement);
 const camera = new THREE.OrthographicCamera();
 camera.position.set(27, 31, 29);
 camera.lookAt(0, 0, 0);
+const exteriorCameraPosition = camera.position.clone();
 camera.near = 0.1;
 camera.far = 120;
 
 function resizeCamera() {
   const aspect = window.innerWidth / window.innerHeight;
-  const viewHeight = aspect < 0.8 ? 45 : aspect < 1.2 ? 38 : 31;
+  const viewHeight = currentHouse
+    ? (aspect < 0.8 ? 25 : aspect < 1.2 ? 21 : 17.5)
+    : (aspect < 0.8 ? 45 : aspect < 1.2 ? 38 : 31);
   camera.left = -viewHeight * aspect / 2;
   camera.right = viewHeight * aspect / 2;
   camera.top = viewHeight / 2;
@@ -255,7 +262,10 @@ function createHouse(neighbor) {
   makeLabel(neighbor);
 }
 
-neighbors.forEach(createHouse);
+neighbors.forEach((neighbor) => {
+  createHouse(neighbor);
+  neighbor.interior = createInterior(neighbor);
+});
 
 function makeScentTexture() {
   const canvas = document.createElement('canvas');
@@ -451,6 +461,16 @@ let walkTime = 0;
 let nearest = null;
 
 function collides(position) {
+  if (currentHouse) {
+    if (Math.abs(position.x) > 5.35 || position.z < -4.35 || position.z > 4.5) return true;
+    return currentHouse.interior.obstacles.some(({ x, z, hx, hz }) => {
+      const closestX = Math.max(x - hx, Math.min(position.x, x + hx));
+      const closestZ = Math.max(z - hz, Math.min(position.z, z + hz));
+      const dx = position.x - closestX;
+      const dz = position.z - closestZ;
+      return dx * dx + dz * dz < 0.16;
+    });
+  }
   if (Math.abs(position.x) > 19.2 || Math.abs(position.z) > 16.2) return true;
   return neighbors.some((neighbor) => {
     const dx = position.x - neighbor.position.x;
@@ -491,11 +511,12 @@ function updatePlayer(delta, time) {
   player.legLeft.rotation.x = THREE.MathUtils.lerp(player.legLeft.rotation.x, swing, delta * 12);
   player.legRight.rotation.x = THREE.MathUtils.lerp(player.legRight.rotation.x, -swing, delta * 12);
   player.group.position.y = 0.17 + (walking ? Math.abs(Math.sin(walkTime)) * 0.075 : Math.sin(time * 2) * 0.015);
-  player.shadow.position.set(player.group.position.x, 0.19, player.group.position.z);
+  player.shadow.position.set(player.group.position.x, currentHouse ? 0.07 : 0.19, player.group.position.z);
   player.shadow.scale.setScalar(walking ? 0.92 : 1);
 }
 
 function updateScents(time) {
+  if (currentHouse) return;
   scentParticles.forEach(({ sprite, neighbor, offset, phase }) => {
     const t = (time * 0.075 + offset) % 1;
     const distance = t * 7.4;
@@ -534,26 +555,65 @@ renderMealList();
 
 function updateRadar() {
   nearest = null;
+  interaction = null;
+  const prompt = $('#interaction-prompt');
+  const actionLabel = $('#mobile-action-label');
+  prompt.classList.remove('visible');
+
+  if (currentHouse) {
+    const interior = currentHouse.interior;
+    const diningDistance = player.group.position.distanceTo(interior.diningPoint);
+    const exitDistance = player.group.position.distanceTo(interior.exitPoint);
+    if (gameState === 'playing' && exitDistance < 1.25) {
+      interaction = { type: 'exit' };
+      prompt.classList.add('visible');
+      $('#prompt-text').textContent = '回到街区，继续闻香';
+      $('#prompt-subtitle').textContent = `${currentHouse.name} · 欢迎下次再来`;
+      actionLabel.textContent = '出门';
+    } else if (gameState === 'playing' && !currentHouse.eaten && diningDistance < 1.7) {
+      interaction = { type: 'dine', neighbor: currentHouse };
+      prompt.classList.add('visible');
+      $('#prompt-text').textContent = `坐下尝尝${currentHouse.dish}`;
+      $('#prompt-subtitle').textContent = `${currentHouse.name}已经备好了碗筷`;
+      actionLabel.textContent = '开饭';
+    } else {
+      actionLabel.textContent = '互动';
+    }
+    $('.radar-icon').textContent = currentHouse.eaten ? '🏠' : '🍽️';
+    $('#scent-dish').textContent = currentHouse.eaten ? `${currentHouse.name} · 欢迎常来` : `${currentHouse.emoji} ${currentHouse.dish}已经上桌`;
+    $('#scent-detail').textContent = currentHouse.eaten ? '可以四处看看，或回到街区' : '走到餐桌前，按 E 坐下开饭';
+    $('#scent-panel').style.setProperty('--scent-color', currentHouse.color);
+    document.querySelectorAll('.scent-bars i').forEach((bar) => bar.classList.remove('active'));
+    return;
+  }
+
+  $('.radar-icon').textContent = '👃';
+  actionLabel.textContent = '敲门';
   let nearestDistance = Infinity;
+  let doorNeighbor = null;
+  let doorDistance = Infinity;
   neighbors.forEach((neighbor) => {
-    if (neighbor.eaten) return;
     const distance = player.group.position.distanceTo(neighbor.door);
-    if (distance < nearestDistance) {
+    if (distance < doorDistance) {
+      doorDistance = distance;
+      doorNeighbor = neighbor;
+    }
+    if (!neighbor.eaten && distance < nearestDistance) {
       nearestDistance = distance;
       nearest = neighbor;
     }
   });
-  const prompt = $('#interaction-prompt');
-  if (gameState === 'playing' && nearest && nearestDistance < 2.25) {
+  if (gameState === 'playing' && doorNeighbor && doorDistance < 2.25) {
+    interaction = { type: 'enter', neighbor: doorNeighbor };
     prompt.classList.add('visible');
-    $('#prompt-text').textContent = `敲开${nearest.name}的门`;
-    $('#prompt-subtitle').textContent = `${nearest.dish} · ${nearest.aroma}扑面而来`;
-  } else {
-    prompt.classList.remove('visible');
+    $('#prompt-text').textContent = doorNeighbor.eaten ? `再进${doorNeighbor.name}坐坐` : `敲开${doorNeighbor.name}的门`;
+    $('#prompt-subtitle').textContent = doorNeighbor.eaten ? `${doorNeighbor.interior.style} · 欢迎回家看看` : `${doorNeighbor.dish} · ${doorNeighbor.aroma}扑面而来`;
+    actionLabel.textContent = '进门';
   }
   if (!nearest) {
     $('#scent-dish').textContent = '今晚的香气都尝过啦';
     $('#scent-detail').textContent = '挨家挨户，全是幸福的味道';
+    document.querySelectorAll('.scent-bars i').forEach((bar) => bar.classList.remove('active'));
     return;
   }
   $('#scent-dish').textContent = `${nearest.emoji} ${nearest.aroma}`;
@@ -591,6 +651,55 @@ function playKnock() {
 
 function playSuccess() {
   [523.25, 659.25, 783.99, 1046.5].forEach((note, index) => tone(note, index * 0.1, 0.28, 'sine', 0.055));
+}
+
+function transitionScene(move) {
+  gameState = 'transition';
+  keys.clear();
+  interaction = null;
+  $('#interaction-prompt').classList.remove('visible');
+  $('#scene-transition').classList.add('active');
+  window.setTimeout(() => {
+    move();
+    resizeCamera();
+  }, 200);
+  window.setTimeout(() => {
+    $('#scene-transition').classList.remove('active');
+    gameState = 'playing';
+  }, 460);
+}
+
+function enterHouse(neighbor) {
+  if (!neighbor || currentHouse || gameState !== 'playing') return;
+  playKnock();
+  transitionScene(() => {
+    currentHouse = neighbor;
+    activeScene = neighbor.interior.scene;
+    activeScene.add(player.group, player.shadow);
+    player.group.position.copy(neighbor.interior.spawn);
+    player.group.rotation.y = Math.PI;
+    camera.position.set(10, 12, 14);
+    camera.lookAt(0, 0, -0.6);
+    $('#home-name').textContent = neighbor.name;
+    $('#home-style').textContent = neighbor.interior.style;
+    $('#home-indicator').classList.remove('hidden');
+  });
+}
+
+function leaveHouse() {
+  if (!currentHouse || gameState !== 'playing') return;
+  const neighbor = currentHouse;
+  transitionScene(() => {
+    currentHouse = null;
+    activeScene = scene;
+    scene.add(player.group, player.shadow);
+    player.group.position.copy(neighbor.door).addScaledVector(neighbor.direction, 0.85);
+    player.group.position.y = 0.17;
+    player.group.rotation.y = neighbor.rotation;
+    camera.position.copy(exteriorCameraPosition);
+    camera.lookAt(0, 0, 0);
+    $('#home-indicator').classList.add('hidden');
+  });
 }
 
 function startGame() {
@@ -675,6 +784,15 @@ function restartGame() {
     neighbor.ring.material.color.set(neighbor.color);
     drawLabel(neighbor);
   });
+  if (currentHouse) {
+    currentHouse = null;
+    activeScene = scene;
+    scene.add(player.group, player.shadow);
+    camera.position.copy(exteriorCameraPosition);
+    camera.lookAt(0, 0, 0);
+    $('#home-indicator').classList.add('hidden');
+    resizeCamera();
+  }
   player.group.position.set(0, 0.17, 5.2);
   player.group.rotation.y = 0;
   activeNeighbor = null;
@@ -689,12 +807,18 @@ function restartGame() {
 }
 
 function handleAction() {
-  if (gameState === 'playing' && nearest && player.group.position.distanceTo(nearest.door) < 2.25) openDialog(nearest);
-  else if (gameState === 'dialog') eatMeal();
+  if (gameState === 'dialog') {
+    eatMeal();
+    return;
+  }
+  if (gameState !== 'playing' || !interaction) return;
+  if (interaction.type === 'enter') enterHouse(interaction.neighbor);
+  if (interaction.type === 'dine') openDialog(interaction.neighbor);
+  if (interaction.type === 'exit') leaveHouse();
 }
 
 function openHelp() {
-  if (gameState === 'eating' || gameState === 'dialog' || gameState === 'help') return;
+  if (['eating', 'dialog', 'help', 'transition'].includes(gameState)) return;
   previousState = gameState;
   gameState = 'help';
   keys.clear();
@@ -714,6 +838,7 @@ $('#help-button').addEventListener('click', openHelp);
 $('#close-help').addEventListener('click', closeHelp);
 $('#got-it-button').addEventListener('click', closeHelp);
 $('#mobile-action').addEventListener('pointerdown', (event) => { event.preventDefault(); handleAction(); });
+$('#leave-house').addEventListener('click', leaveHouse);
 $('.brand').addEventListener('click', (event) => event.preventDefault());
 $('#sound-button').addEventListener('click', () => {
   initAudio();
@@ -761,6 +886,6 @@ function animate() {
   updatePlayer(delta, time);
   updateScents(time);
   updateRadar();
-  renderer.render(scene, camera);
+  renderer.render(activeScene, camera);
 }
 animate();

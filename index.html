@@ -12,6 +12,7 @@
     <main id="app">
       <div id="game-canvas" aria-label="3D 邻里街区游戏场景"></div>
       <div class="vignette"></div>
+      <div class="scene-transition" id="scene-transition"></div>
 
       <header class="topbar">
         <a class="brand" href="#" aria-label="闻香去蹭饭首页">
@@ -42,6 +43,12 @@
         <div class="panel-footer"><span>🥢</span> 碗筷已自带，就差开饭啦</div>
       </aside>
 
+      <div class="home-indicator glass-panel hidden" id="home-indicator">
+        <span class="home-icon">⌂</span>
+        <div><strong id="home-name">林奶奶家</strong><small id="home-style">红木暖居 · 花香满屋</small></div>
+        <button id="leave-house" aria-label="回到街区"><span>↗</span> 回到街区</button>
+      </div>
+
       <aside class="scent-panel glass-panel" id="scent-panel">
         <div class="radar-wrap" id="radar-wrap">
           <span class="radar-ring ring-one"></span><span class="radar-ring ring-two"></span>
@@ -64,7 +71,7 @@
       <div class="controls-hint" id="controls-hint">
         <span><span class="wasd-icon"><i>W</i><i>A</i><i>S</i><i>D</i></span> 移动</span>
         <b></b><span><span class="small-key">SHIFT</span> 加速</span>
-        <b></b><span><span class="small-key">E</span> 敲门 / 开饭</span>
+        <b></b><span><span class="small-key">E</span> 进门 / 开饭 / 出门</span>
       </div>
 
       <div class="mobile-controls" id="mobile-controls">
@@ -74,16 +81,16 @@
           <button data-key="KeyS" class="dpad-down" aria-label="向后">↓</button>
           <button data-key="KeyD" class="dpad-right" aria-label="向右">→</button>
         </div>
-        <button class="mobile-action" id="mobile-action"><span>E</span>敲门</button>
+        <button class="mobile-action" id="mobile-action"><span>E</span><b id="mobile-action-label">敲门</b></button>
       </div>
 
       <section class="welcome-overlay" id="welcome-overlay">
         <div class="welcome-card">
           <div class="welcome-tag"><span></span> 一款用鼻子导航的街区小游戏</div>
           <h1>今晚，<br />去邻居家<br /><em>蹭顿饭。</em></h1>
-          <p>晚风把饭菜香吹过街巷。<br />循着香气，敲开门，尝尝四道热乎乎的家常菜。</p>
+          <p>晚风把饭菜香吹过街巷。<br />循着香气，走进四个不同的小家，尝尝热乎乎的家常菜。</p>
           <button class="primary-button" id="start-button"><span>带上碗筷，出发</span><b>→</b></button>
-          <div class="welcome-meta"><span>4 位邻居</span><i></i><span>4 道家常菜</span><i></i><span>不限时，慢慢逛</span></div>
+          <div class="welcome-meta"><span>4 间不同小家</span><i></i><span>4 道家常菜</span><i></i><span>不限时，慢慢逛</span></div>
           <div class="welcome-tip"><span class="keycap">E</span><span>靠近门口就能敲门，<strong>Shift</strong> 可以加速哦</span></div>
         </div>
         <div class="floating-note note-one"><span>🥟</span><div><strong>三鲜饺子</strong><small>林奶奶家 · 刚出锅</small></div></div>
@@ -128,8 +135,8 @@
           <span class="eyebrow">HOW TO PLAY</span><h2>好味道，闻得到</h2>
           <div class="help-steps">
             <div><span>01</span><div><strong>循着香气走</strong><p>不同颜色代表不同菜香，右下角鼻子雷达会提示最近的一家。</p></div></div>
-            <div><span>02</span><div><strong>在门口按 E</strong><p>靠近发亮的门垫，按 E 敲门。邻居总会多备一双碗筷。</p></div></div>
-            <div><span>03</span><div><strong>吃遍整个街区</strong><p>品尝四道家常菜，填满今晚的蹭饭清单。没有倒计时，慢慢逛。</p></div></div>
+            <div><span>02</span><div><strong>进门坐坐，餐桌开饭</strong><p>靠近门垫按 E 进屋，在四个装饰不同的小家里走走。到餐桌前按 E 开饭。</p></div></div>
+            <div><span>03</span><div><strong>吃遍整个街区</strong><p>吃饱后走回门口按 E 回到街区，也可以点上方“回到街区”。尝遍四道菜就完成啦。</p></div></div>
           </div>
           <button class="primary-button" id="got-it-button"><span>知道啦，闻香出发</span><b>→</b></button>
         </div>
